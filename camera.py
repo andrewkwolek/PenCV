@@ -2,36 +2,36 @@ import pyrealsense2 as rs
 import numpy as np
 import cv2
 
-class Camera():
+class Camera:
     def __init__(self, resolution, fps):
+        print("init")
         self.pipeline = rs.pipeline()
         self.config = rs.config()
 
         # Get device product line for setting a supporting resolution
-        self.pipeline_wrapper = rs.pipeline_wrapper(self.pipeline)
-        self.pipeline_profile = self.config.resolve(self.pipeline_wrapper)
-        device = self.pipeline_profile.get_device()
+        pipeline_wrapper = rs.pipeline_wrapper(self.pipeline)
+        pipeline_profile = self.config.resolve(pipeline_wrapper)
+        device = pipeline_profile.get_device()
         device_product_line = str(device.get_info(rs.camera_info.product_line))
 
         found_rgb = False
-        for s in self.device.sensors:
+        for s in device.sensors:
             if s.get_info(rs.camera_info.name) == 'RGB Camera':
                 found_rgb = True
                 break
-            if not found_rgb:
-                print("The demo requires Depth camera with Color sensor")
-                exit(0)
+        if not found_rgb:
+            print("The demo requires Depth camera with Color sensor")
+            exit(0)
 
         self.config.enable_stream(rs.stream.depth, resolution[0], resolution[1], rs.format.z16, fps)
         self.config.enable_stream(rs.stream.color, resolution[0], resolution[1], rs.format.bgr8, fps)
 
-        # Start streaming
-        self.profile = self.pipeline.start(self.config)
-
     def __enter__(self):
+        print("enter")
         self.profile = self.pipeline.start(self.config)
+        return self
     
-    def __exit__(self):
+    def __exit__(self, exc_type, exc_value, exc_traceback):
         self.pipeline.stop()
 
     def set_depth_scale(self, clip_dist_in_m):
@@ -82,5 +82,3 @@ class Camera():
     def display_images(self, images):
         cv2.namedWindow('Align Example', cv2.WINDOW_NORMAL)
         cv2.imshow('Align Example', images)
-        key = cv2.waitKey(1)
-        return key
