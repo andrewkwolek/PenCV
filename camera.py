@@ -28,6 +28,12 @@ class Camera():
         # Start streaming
         self.profile = self.pipeline.start(self.config)
 
+    def __enter__(self):
+        self.profile = self.pipeline.start(self.config)
+    
+    def __exit__(self):
+        self.pipeline.stop()
+
     def set_depth_scale(self, clip_dist_in_m):
         # Getting the depth sensor's depth scale (see rs-align example for explanation)
         depth_sensor = self.profile.get_device().first_depth_sensor()
@@ -78,8 +84,3 @@ class Camera():
         cv2.imshow('Align Example', images)
         key = cv2.waitKey(1)
         return key
-    
-    def cleanup(self):
-        self.pipeline.stop()
-    
-
