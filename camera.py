@@ -71,12 +71,40 @@ class Camera:
         depth_image_3d = np.dstack((depth_image,depth_image,depth_image)) #depth image is 1 channel, color is 3 channels
         return np.where((depth_image_3d > self.clipping_distance) | (depth_image_3d <= 0), clip_color, color_image)
     
-    def render_images(self, depth_image, bg_removed, alpha):
+    def bilateral_filter(self, img, d, sigCol, sigSpace):
+        return cv2.bilateralFilter(img, d, sigCol, sigSpace)
+    
+    def rgb_to_hsv(self, frame, min_hsv, max_hsv):
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        mask = cv2.inRange(hsv, min_hsv, max_hsv)
+        res = cv2.bitwise_and(frame, frame, mask=mask)
+        return res, mask
+    
+    def contours(self, display_image, mask):
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        cv2.drawContours(display_image, contours, -1, (0, 255, 0), 1)
+        return contours
+    
+    def locate_centroid(self, contours, display_image):
+        largest_cnt = None
+        largest_area = 0
+        for cnt in contours:
+            cur_area = cv2.contourArea(cnt)
+            if cur_area > largest_area:
+                largest_area = cur_area
+                largest_cnt = cnt
+        M = cv2.moments(largest_cnt)
+        cx = int(M['m10']/M['m00'])
+        cy = int(M['m01']/M['m00'])
+        cv2.circle(display_image, (cx, cy), 6, (0, 0, 255), -2)
+
+    
+    def render_images(self, image1, image2):
         # Render images:
         #   depth align to color on left
         #   depth on right
-        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=alpha), cv2.COLORMAP_JET)
-        images = np.hstack((bg_removed, depth_colormap))
+        # depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=alpha), cv2.COLORMAP_JET)
+        images = np.hstack((image1, image2))
         return images
     
     def display_images(self, images):
