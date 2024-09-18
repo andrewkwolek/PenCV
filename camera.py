@@ -71,14 +71,13 @@ class Camera:
         depth_image_3d = np.dstack((depth_image,depth_image,depth_image)) #depth image is 1 channel, color is 3 channels
         return np.where((depth_image_3d > self.clipping_distance) | (depth_image_3d <= 0), clip_color, color_image)
     
-    def render_images(self, depth_image, bg_removed):
+    def render_images(self, depth_image, bg_removed, alpha):
         # Render images:
         #   depth align to color on left
         #   depth on right
-        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
+        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=alpha), cv2.COLORMAP_JET)
         images = np.hstack((bg_removed, depth_colormap))
         return images
     
     def display_images(self, images):
-        cv2.namedWindow('Align Example', cv2.WINDOW_NORMAL)
-        cv2.imshow('Align Example', images)
+        cv2.imshow('image', images)
