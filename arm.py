@@ -24,7 +24,7 @@ class Robot:
     
     def run(self):
         while self.mode != 'q':
-            self.mode = input("[h]ome, [s]leep, [q]uit, [d]ata, [c]lose, [o]pen\n")
+            self.mode = input("[h]ome, [s]leep, [q]uit, [d]ata, [c]lose, [o]pen, [r]otate\n")
             if self.mode == 'h':
                 self.robot.arm.go_to_home_pose()
             elif self.mode == 's':
@@ -38,11 +38,16 @@ class Robot:
                 print(f"Wrist angle pos: {self.robot.arm.get_single_joint_command("wrist_angle")}")
                 T = mr.FKinSpace(self.robot.arm.robot_des.M, self.robot.arm.robot_des.Slist, self.robot.arm.get_joint_commands())
                 rotation_mat = mr.TransToRp(T)
-                print(f"Rotation atrix and displacement: {rotation_mat}")
+                # print(f"Rotation atrix and displacement: {rotation_mat}")
             elif self.mode == 'c':
                 self.robot.gripper.grasp()
             elif self.mode == 'o':
                 self.robot.gripper.release()
+            elif self.mode == 'r':
+                cur_pos = self.robot.arm.get_single_joint_command("waist")
+                print(self.robot.arm.set_single_joint_position('waist', cur_pos + 0.25, moving_time=3))
+                #self.robot.arm.set_single_joint_position('waist', 150, moving_time=10)
+            
 
 
     
