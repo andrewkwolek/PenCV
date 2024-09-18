@@ -86,6 +86,7 @@ def main():
             cam.locate_centroid(contours, color_image)
             images = cam.render_images(color_image, hsv_aligned_image)
             cam.display_images(images)
+            
             key = cv2.waitKey(1)
             # Press esc or 'q' to close the image window
             if key & 0xFF == ord('q') or key == 27:

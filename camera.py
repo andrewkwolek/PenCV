@@ -85,6 +85,7 @@ class Camera:
         cv2.drawContours(display_image, contours, -1, (0, 255, 0), 1)
         return contours
     
+    ############################ Start_Citation [1] ####################################
     def locate_centroid(self, contours, display_image):
         largest_cnt = None
         largest_area = 0
@@ -97,6 +98,7 @@ class Camera:
         cx = int(M['m10']/M['m00'])
         cy = int(M['m01']/M['m00'])
         cv2.circle(display_image, (cx, cy), 6, (0, 0, 255), -2)
+    ############################# End_Citation [1] ####################################
 
     
     def render_images(self, image1, image2):
@@ -109,3 +111,5 @@ class Camera:
     
     def display_images(self, images):
         cv2.imshow('image', images)
+
+# [1] "Drawing the centroid for the contour of maximum area in OpenCV python", stackoverflow, 2022, https://stackoverflow.com/questions/65097816/drawing-the-centroid-for-the-contour-of-maximum-area-in-opencv-python
