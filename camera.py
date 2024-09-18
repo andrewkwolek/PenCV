@@ -37,12 +37,12 @@ class Camera:
     def set_depth_scale(self, clip_dist_in_m):
         # Getting the depth sensor's depth scale (see rs-align example for explanation)
         depth_sensor = self.profile.get_device().first_depth_sensor()
-        depth_scale = depth_sensor.get_depth_scale()
-        print("Depth Scale is: " , depth_scale)
+        self.depth_scale = depth_sensor.get_depth_scale()
+        # print("Depth Scale is: " , self.depth_scale)
 
         # We will be removing the background of objects more than
         #  clipping_distance_in_meters meters away
-        self.clipping_distance = clip_dist_in_m / depth_scale
+        self.clipping_distance = clip_dist_in_m / self.depth_scale
 
     def get_images(self):
         # Create an align object
@@ -95,12 +95,25 @@ class Camera:
                 largest_area = cur_area
                 largest_cnt = cnt
         M = cv2.moments(largest_cnt)
-        cx = int(M['m10']/M['m00'])
-        cy = int(M['m01']/M['m00'])
-        cv2.circle(display_image, (cx, cy), 6, (0, 0, 255), -2)
+        if M['m00'] != 0:
+            cx = int(M['m10']/M['m00'])
+            cy = int(M['m01']/M['m00'])
+            cv2.circle(display_image, (cx, cy), 6, (0, 0, 255), -2)
+            return (cx, cy)
+        else:
+            return None
     ############################# End_Citation [1] ####################################
 
-    
+    def get_full_coordinate(self, depth_image, centroid):
+        if centroid[0] > 0 and centroid[0] < 480 and centroid[1] > 0 and centroid[1] < 640:
+            depth = depth_image[centroid[0]][centroid[1]]
+            depth = depth * self.depth_scale
+            print(depth)
+        else:
+            depth = 0
+        return (centroid[0], centroid[1], depth)
+
+
     def render_images(self, image1, image2):
         # Render images:
         #   depth align to color on left
