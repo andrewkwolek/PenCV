@@ -3,7 +3,7 @@ import numpy as np
 import cv2
 
 class Camera:
-    def __init__(self, resolution, fps):
+    def __init__(self, resolution=[640,480], fps=30, min_hue=0, depth=6, min_sat=0, min_val=0, max_hue=180, max_sat=255, max_val=255, d=5, sig_col=75, sig_space=75):
         print("init")
         self.pipeline = rs.pipeline()
         self.config = rs.config()
@@ -26,13 +26,81 @@ class Camera:
         self.config.enable_stream(rs.stream.depth, resolution[0], resolution[1], rs.format.z16, fps)
         self.config.enable_stream(rs.stream.color, resolution[0], resolution[1], rs.format.bgr8, fps)
 
+        # Set default HSV values
+        self.min_hue = min_hue
+        self.max_hue = max_hue
+        self.min_sat = min_sat
+        self.max_sat = max_sat
+        self.min_val = min_val
+        self.max_val = max_val
+        self.depth = depth
+
+        #Set default bilateral filter values
+        self.d = d
+        self.sig_col = sig_col
+        self.sig_space = sig_space
+
     def __enter__(self):
         print("enter")
+        cv2.namedWindow('image')
+        cv2.createTrackbar('depth', 'image', self.depth, 12, self.change_depth)
+        cv2.createTrackbar('minH', 'image', self.min_hue, 180, self.change_min_hue)
+        cv2.createTrackbar('maxH', 'image', self.max_hue, 180, self.change_max_hue)
+        cv2.createTrackbar('minS', 'image', self.min_sat, 255, self.change_min_saturation)
+        cv2.createTrackbar('maxS', 'image', self.max_sat, 255, self.change_max_saturation)
+        cv2.createTrackbar('minV', 'image', self.min_val, 255, self.change_min_value)
+        cv2.createTrackbar('maxV', 'image', self.max_val, 255, self.change_max_value)
+        cv2.createTrackbar('d', 'image', self.d, 9, self.change_d)
+        cv2.createTrackbar('sigColor', 'image', self.sig_col, 150, self.change_sigma_color)
+        cv2.createTrackbar('sigSpace', 'image', self.sig_space, 150, self.change_sigma_space)
         self.profile = self.pipeline.start(self.config)
         return self
     
     def __exit__(self, exc_type, exc_value, exc_traceback):
         self.pipeline.stop()
+
+    def change_depth(self, val):
+        # self.depth
+        self.depth = val / 6
+
+    def change_min_hue(self, val):
+        # self.min_hue
+        self.min_hue = val
+
+    def change_max_hue(self, val):
+        # self.max_hue
+        self.max_hue = val
+
+    def change_min_saturation(self, val):
+        # self.min_sat 
+        self.min_sat = val
+
+    def change_max_saturation(self, val):
+        # self.max_sat 
+        self.max_sat = val
+
+    def change_min_value(self, val):
+        # self.min_val 
+        self.min_val = val
+
+    def change_max_value(self, val):
+        # self.max_val 
+        self.max_val = val
+
+    def change_d(self, val):
+        # self.d
+        if self.d < 1:
+            pass
+        else:
+            self.d = val
+
+    def change_sigma_color(self, val):
+        # self.sig_col
+        self.sig_col = val
+
+    def change_sigma_space(self, val):
+        # self.sig_space
+        self.sig_space = val
 
     def set_depth_scale(self, clip_dist_in_m):
         # Getting the depth sensor's depth scale (see rs-align example for explanation)
@@ -71,12 +139,12 @@ class Camera:
         depth_image_3d = np.dstack((depth_image,depth_image,depth_image)) #depth image is 1 channel, color is 3 channels
         return np.where((depth_image_3d > self.clipping_distance) | (depth_image_3d <= 0), clip_color, color_image)
     
-    def bilateral_filter(self, img, d, sigCol, sigSpace):
-        return cv2.bilateralFilter(img, d, sigCol, sigSpace)
+    def bilateral_filter(self, img):
+        return cv2.bilateralFilter(img, self.d, self.sig_col, self.sig_space)
     
-    def rgb_to_hsv(self, frame, min_hsv, max_hsv):
+    def rgb_to_hsv(self, frame):
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        mask = cv2.inRange(hsv, min_hsv, max_hsv)
+        mask = cv2.inRange(hsv, (self.min_hue, self.min_sat, self.min_val), (self.max_hue, self.max_sat, self.max_val))
         res = cv2.bitwise_and(frame, frame, mask=mask)
         return res, mask
     
@@ -124,5 +192,55 @@ class Camera:
     
     def display_images(self, images):
         cv2.imshow('image', images)
+
+    #def pipeline_iteration(self, depth, d, sig_col, sig_space, min_hue, min_sat, min_val, max_hue, max_sat, max_val):
+    def pipeline_iteration(self):
+        self.set_depth_scale(self.depth)
+        depth_image, color_image = self.get_images()
+        # clipped_image = cam.clip_image(clip_color, depth_image, color_image)
+        # rgb_aligned_image = cam.render_images(depth_image, bg_removed, alpha)
+        filtered_image = self.bilateral_filter(color_image)
+        hsv_aligned_image, mask = self.rgb_to_hsv(filtered_image)
+        contours = self.contours(color_image, mask)
+        centroid = self.locate_centroid(contours, color_image)
+        xyz = None
+        if centroid != None:
+            xyz = self.get_full_coordinate(depth_image, centroid)
+        images = self.render_images(color_image, hsv_aligned_image)
+        self.display_images(images)
+        if xyz != None and xyz[2] > 0:
+            coord_to_robot = xyz
+            return coord_to_robot
+        
+    def get_calibration_values(self):
+        return {
+            "depth" : self.depth, 
+            "min_hue" : self.min_hue, 
+            "min_sat" : self.min_sat,
+            "min_val" : self.min_val,
+            "max_hue" : self.max_hue,
+            "max_sat" : self.max_sat,
+            "max_val" : self.max_val,
+            "d" : self.d,
+            "sig_col" : self.sig_col,
+            "sig_space" : self.sig_space
+            }
+    
+        
+def main():
+    with Camera() as cam:
+        while True:
+            cam.pipeline_iteration()
+            key = cv2.waitKey(1)
+            # Press esc or 'q' to close the image window
+            if key & 0xFF == ord('c'):
+                print(cam.get_calibration_values())
+            if key & 0xFF == ord('q') or key == 27:
+                cv2.destroyAllWindows()
+                break
+
+
+if __name__=="__main__":
+    main()
 
 # [1] "Drawing the centroid for the contour of maximum area in OpenCV python", stackoverflow, 2022, https://stackoverflow.com/questions/65097816/drawing-the-centroid-for-the-contour-of-maximum-area-in-opencv-python

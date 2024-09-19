@@ -76,23 +76,7 @@ def main():
     cv2.createTrackbar('sigSpace', 'image', sig_space, 150, change_sigma_space)
     with Camera(resolution, fps) as cam:
         while True:
-            cam.set_depth_scale(depth)
-            depth_image, color_image = cam.get_images()
-            # clipped_image = cam.clip_image(clip_color, depth_image, color_image)
-            # rgb_aligned_image = cam.render_images(depth_image, bg_removed, alpha)
-            filtered_image = cam.bilateral_filter(color_image, d, sig_col, sig_space)
-            hsv_aligned_image, mask = cam.rgb_to_hsv(filtered_image, (min_hue, min_sat, min_val), (max_hue, max_sat, max_val))
-            contours = cam.contours(color_image, mask)
-            centroid = cam.locate_centroid(contours, color_image)
-            xyz = None
-            if centroid != None:
-                xyz = cam.get_full_coordinate(depth_image, centroid)
-            images = cam.render_images(color_image, hsv_aligned_image)
-            cam.display_images(images)
-            if xyz != None and xyz[2] > 0:
-                coord_to_robot = xyz
-                print(coord_to_robot)
-        
+            cam.pipeline_iteration(depth, d, sig_col, sig_space, min_hue, min_sat, min_val, max_hue, max_sat, max_val)
             key = cv2.waitKey(1)
             # Press esc or 'q' to close the image window
             if key & 0xFF == ord('q') or key == 27:
