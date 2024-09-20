@@ -4,7 +4,7 @@ import cv2
 
 
 class Camera:
-    def __init__(self, resolution=[640, 480], fps=30, min_hue=0, depth=6, min_sat=0, min_val=0, max_hue=180, max_sat=255, max_val=255, d=5, sig_col=75, sig_space=75):
+    def __init__(self, resolution=[640, 480], fps=30, min_hue=110, depth=6, min_sat=129, min_val=43, max_hue=139, max_sat=255, max_val=255, d=5, sig_col=75, sig_space=75):
         print("init")
         self.pipeline = rs.pipeline()
         self.config = rs.config()
@@ -71,7 +71,7 @@ class Camera:
         self.pipeline.stop()
 
     def change_depth(self, val):
-        self.depth = val / 6
+        self.depth = val
 
     def change_min_hue(self, val):
         self.min_hue = val
@@ -107,7 +107,7 @@ class Camera:
         # Getting the depth sensor's depth scale (see rs-align example for explanation)
         depth_sensor = self.profile.get_device().first_depth_sensor()
         self.depth_scale = depth_sensor.get_depth_scale()
-        # print("Depth Scale is: " , self.depth_scale)
+        # print("Depth Scale is: ", self.depth_scale)
 
         # We will be removing the background of objects more than
         #  clipping_distance_in_meters meters away
@@ -128,10 +128,11 @@ class Camera:
 
         # Get aligned frames
         # aligned_depth_frame is a 640x480 depth image
-        aligned_depth_frame = aligned_frames.get_depth_frame()
+        self.aligned_depth_frame = aligned_frames.get_depth_frame()
         color_frame = aligned_frames.get_color_frame()
+        # print(self.aligned_depth_frame.get_units())
 
-        depth_image = np.asanyarray(aligned_depth_frame.get_data())
+        depth_image = np.asanyarray(self.aligned_depth_frame.get_data())
         color_image = np.asanyarray(color_frame.get_data())
 
         return depth_image, color_image
@@ -177,14 +178,15 @@ class Camera:
             return None
     ############################# End_Citation [1] ####################################
 
-    def get_full_coordinate(self, depth_image, centroid):
+    def get_full_coordinate(self, centroid):
         if centroid[0] > 0 and centroid[0] < 480 and centroid[1] > 0 and centroid[1] < 640:
-            depth = depth_image[centroid[0]][centroid[1]]
-            depth = depth * self.depth_scale
-            print(depth)
+            im_depth = self.aligned_depth_frame.get_distance(
+                centroid[0], centroid[1])
+            print(centroid)
+            print(im_depth)
         else:
-            depth = 0
-        return (centroid[0], centroid[1], depth)
+            im_depth = 0
+        return (centroid[0], centroid[1], im_depth)
 
     def render_images(self, image1, image2):
         # Render images:
@@ -198,17 +200,17 @@ class Camera:
         cv2.imshow('image', images)
 
     def pipeline_iteration(self):
-        self.set_depth_scale(self.depth)
+        self.set_depth_scale(self.depth/6)
         depth_image, color_image = self.get_images()
-        # clipped_image = cam.clip_image(clip_color, depth_image, color_image)
-        # rgb_aligned_image = cam.render_images(depth_image, bg_removed, alpha)
         filtered_image = self.bilateral_filter(color_image)
+        # clipped_image = self.clip_image(179, depth_image, filtered_image)
+        # hsv_aligned_image, mask = self.rgb_to_hsv(clipped_image)
         hsv_aligned_image, mask = self.rgb_to_hsv(filtered_image)
         contours = self.contours(color_image, mask)
         centroid = self.locate_centroid(contours, color_image)
         xyz = None
         if centroid != None:
-            xyz = self.get_full_coordinate(depth_image, centroid)
+            xyz = self.get_full_coordinate(centroid)
         images = self.render_images(color_image, hsv_aligned_image)
         self.display_images(images)
         if xyz != None and xyz[2] > 0:

@@ -26,14 +26,13 @@ class Calibration:
 
     def calibration_routine(self):
         with Robot() as rob:
-            with Camera(resolution=self.resolution, fps=self.fps, min_hue=self.hsv["min_hue"], min_sat=self.hsv["min_sat"], min_val=self.hsv["min_val"], max_hue=self.hsv["max_hue"], max_sat=self.hsv["max_sat"], max_val=self.hsv["max_val"]) as cam:
+            print(self.hsv["depth"])
+            with Camera(resolution=self.resolution, fps=self.fps, depth=self.hsv["depth"], min_hue=self.hsv["min_hue"], min_sat=self.hsv["min_sat"], min_val=self.hsv["min_val"], max_hue=self.hsv["max_hue"], max_sat=self.hsv["max_sat"], max_val=self.hsv["max_val"]) as cam:
                 rob.robot.arm.go_to_home_pose(moving_time=1)
                 time.sleep(1)
                 rob.robot.gripper.set_pressure(0.75)
                 rob.robot.gripper.grasp()
                 time.sleep(1)
-
-                self.set_hsv()
 
                 # Get coordinates from home pose
                 cam_coord = cam.pipeline_iteration()
@@ -44,7 +43,7 @@ class Calibration:
                 time.sleep(1)
 
                 # Get coords from first pose
-                rob.robot.arm.set_joint_positions([0.25, -0.25, -0.1, 0.25])
+                rob.robot.arm.set_joint_positions([0.15, -0.1, -0.1, 0.1])
                 time.sleep(1)
                 cam_coord = cam.pipeline_iteration()
                 while cam_coord == None:
@@ -53,7 +52,7 @@ class Calibration:
                 self.robot_coords.append(rob.get_gripper_coords())
 
                 # Get coords from second pose
-                rob.robot.arm.set_joint_positions([0.5, 0, -0.5, 0.5])
+                rob.robot.arm.set_joint_positions([0.15, 0.1, 0.1, -0.1])
                 time.sleep(1)
                 cam_coord = cam.pipeline_iteration()
                 while cam_coord == None:
@@ -62,7 +61,7 @@ class Calibration:
                 self.robot_coords.append(rob.get_gripper_coords())
 
                 # Get coords from third pose
-                rob.robot.arm.set_joint_positions([0.75, -0.2, -0.15, 0.3])
+                rob.robot.arm.set_joint_positions([-0.15, -0.1, -0.1, 0.1])
                 time.sleep(1)
                 cam_coord = cam.pipeline_iteration()
                 while cam_coord == None:
@@ -71,7 +70,7 @@ class Calibration:
                 self.robot_coords.append(rob.get_gripper_coords())
 
                 # Get coords from fourth pose
-                rob.robot.arm.set_joint_positions([0.6, -0.5, -0.25, -0.25])
+                rob.robot.arm.set_joint_positions([-0.15, 0.1, 0.1, -0.1])
                 time.sleep(1)
                 cam_coord = cam.pipeline_iteration()
                 while cam_coord == None:
@@ -80,7 +79,7 @@ class Calibration:
                 self.robot_coords.append(rob.get_gripper_coords())
 
                 # Get coords from fifth pose
-                rob.robot.arm.set_joint_positions([0.15, 0.2, -0.35, 1])
+                rob.robot.arm.set_joint_positions([0, 0.2, -0.2, -0.1])
                 time.sleep(1)
                 cam_coord = cam.pipeline_iteration()
                 while cam_coord == None:
