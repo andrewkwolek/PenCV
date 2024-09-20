@@ -3,6 +3,7 @@ from arm import Robot
 import cv2
 import time
 
+
 class Calibration:
     def __init__(self):
         self.hsv = {}
@@ -51,7 +52,7 @@ class Calibration:
                 self.img_coords.append(cam_coord)
                 self.robot_coords.append(rob.get_gripper_coords())
 
-                #Get coords from second pose
+                # Get coords from second pose
                 rob.robot.arm.set_joint_positions([0.5, 0, -0.5, 0.5])
                 time.sleep(1)
                 cam_coord = cam.pipeline_iteration()
@@ -60,7 +61,7 @@ class Calibration:
                 self.img_coords.append(cam_coord)
                 self.robot_coords.append(rob.get_gripper_coords())
 
-                #Get coords from third pose
+                # Get coords from third pose
                 rob.robot.arm.set_joint_positions([0.75, -0.2, -0.15, 0.3])
                 time.sleep(1)
                 cam_coord = cam.pipeline_iteration()
@@ -69,7 +70,7 @@ class Calibration:
                 self.img_coords.append(cam_coord)
                 self.robot_coords.append(rob.get_gripper_coords())
 
-                #Get coords from fourth pose
+                # Get coords from fourth pose
                 rob.robot.arm.set_joint_positions([0.6, -0.5, -0.25, -0.25])
                 time.sleep(1)
                 cam_coord = cam.pipeline_iteration()
@@ -78,7 +79,7 @@ class Calibration:
                 self.img_coords.append(cam_coord)
                 self.robot_coords.append(rob.get_gripper_coords())
 
-                #Get coords from fifth pose
+                # Get coords from fifth pose
                 rob.robot.arm.set_joint_positions([0.15, 0.2, -0.35, 1])
                 time.sleep(1)
                 cam_coord = cam.pipeline_iteration()
@@ -96,11 +97,14 @@ class Calibration:
     def get_hsv(self):
         return self.hsv
 
+# main loop for calibration
+
 
 def main():
     calibrate = Calibration()
     calibrate.set_hsv()
     calibrate.calibration_routine()
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     main()
