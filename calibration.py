@@ -2,15 +2,21 @@ from camera import Camera
 from arm import Robot
 import cv2
 import time
+from scipy.spatial.transform import Rotation
+import numpy as np
+import pickle
+import modern_robotics as mr
 
 
 class Calibration:
     def __init__(self):
-        self.hsv = {}
+        self.vals = {}
         self.img_coords = []
         self.robot_coords = []
         self.resolution = [640, 480]
         self.fps = 30
+        self.joint_pos = [[1.25, -0.5, 0, 0.5],
+                          [0.75, 0.25, -0.5, 0], [0.25, 0.25, 0.25, -0.5], [0, -0.5, 1, -0.75], [-0.25, -1.25, 1, 0], [-0.25, 0.75, -0.5, -0.5], [-0.75, 0, 1.25, -1.5]]
 
     def set_hsv(self):
         with Camera() as cam:
@@ -19,82 +25,74 @@ class Calibration:
                 key = cv2.waitKey(1)
                 # Press esc or 'q' to close the image window
                 if key & 0xFF == ord('c'):
-                    self.hsv = cam.get_calibration_values()
+                    self.vals = cam.get_calibration_values()
                 if key & 0xFF == ord('q') or key == 27:
                     cv2.destroyAllWindows()
                     break
 
-    def calibration_routine(self):
+    def movement_routine(self):
         with Robot() as rob:
-            print(self.hsv["depth"])
-            with Camera(resolution=self.resolution, fps=self.fps, depth=self.hsv["depth"], min_hue=self.hsv["min_hue"], min_sat=self.hsv["min_sat"], min_val=self.hsv["min_val"], max_hue=self.hsv["max_hue"], max_sat=self.hsv["max_sat"], max_val=self.hsv["max_val"]) as cam:
-                rob.robot.arm.go_to_home_pose(moving_time=1)
-                time.sleep(1)
-                rob.robot.gripper.set_pressure(0.75)
-                rob.robot.gripper.grasp()
-                time.sleep(1)
+            with Camera(self.resolution, self.fps, self.vals["min_hue"], self.vals["depth"], self.vals["min_sat"], self.vals["min_val"], self.vals["max_hue"], self.vals["max_sat"], self.vals["max_val"]) as cam:
+                rob.open()
+                time.sleep(0.5)
+                rob.close()
+                time.sleep(2)
 
-                # Get coordinates from home pose
-                cam_coord = cam.pipeline_iteration()
-                while cam_coord == None:
-                    cam_coord = cam.pipeline_iteration()
-                self.img_coords.append(cam_coord)
-                self.robot_coords.append(rob.get_gripper_coords())
-                time.sleep(1)
-
-                # Get coords from first pose
-                rob.robot.arm.set_joint_positions([0.15, -0.1, -0.1, 0.1])
-                time.sleep(1)
-                cam_coord = cam.pipeline_iteration()
-                while cam_coord == None:
-                    cam_coord = cam.pipeline_iteration()
-                self.img_coords.append(cam_coord)
-                self.robot_coords.append(rob.get_gripper_coords())
-
-                # Get coords from second pose
-                rob.robot.arm.set_joint_positions([0.15, 0.1, 0.1, -0.1])
-                time.sleep(1)
-                cam_coord = cam.pipeline_iteration()
-                while cam_coord == None:
-                    cam_coord = cam.pipeline_iteration()
-                self.img_coords.append(cam_coord)
-                self.robot_coords.append(rob.get_gripper_coords())
-
-                # Get coords from third pose
-                rob.robot.arm.set_joint_positions([-0.15, -0.1, -0.1, 0.1])
-                time.sleep(1)
-                cam_coord = cam.pipeline_iteration()
-                while cam_coord == None:
-                    cam_coord = cam.pipeline_iteration()
-                self.img_coords.append(cam_coord)
-                self.robot_coords.append(rob.get_gripper_coords())
-
-                # Get coords from fourth pose
-                rob.robot.arm.set_joint_positions([-0.15, 0.1, 0.1, -0.1])
-                time.sleep(1)
-                cam_coord = cam.pipeline_iteration()
-                while cam_coord == None:
-                    cam_coord = cam.pipeline_iteration()
-                self.img_coords.append(cam_coord)
-                self.robot_coords.append(rob.get_gripper_coords())
-
-                # Get coords from fifth pose
-                rob.robot.arm.set_joint_positions([0, 0.2, -0.2, -0.1])
-                time.sleep(1)
-                cam_coord = cam.pipeline_iteration()
-                while cam_coord == None:
-                    cam_coord = cam.pipeline_iteration()
-                self.img_coords.append(cam_coord)
-                self.robot_coords.append(rob.get_gripper_coords())
+                # Iterate through calibration points
+                for joint_position in self.joint_pos:
+                    print(joint_position)
+                    rob.move_all_joints(joint_position)
+                    time.sleep(1)
+                    self.get_coords(rob, cam)
 
                 rob.robot.arm.go_to_home_pose()
-                time.sleep(1)
-                rob.robot.gripper.release()
-                print(self.img_coords)
-                print(self.robot_coords)
+                rob.open()
+                rob.robot.arm.go_to_sleep_pose()
 
-    def get_hsv(self):
-        return self.hsv
+    def get_coords(self, rob, cam):
+        time.sleep(1)
+        cam_coord = cam.pipeline_iteration()
+        while cam_coord == None:
+            cam_coord = cam.pipeline_iteration()
+        self.img_coords.append(np.array(cam_coord))
+        self.robot_coords.append(rob.get_gripper_coords())
+
+    def save_vals(self):
+        with open('cal.pkl', 'wb') as file:
+            pickle.dump(self.vals, file)
+
+    def calibration_math(self):
+        cam_cen = np.array([0, 0, 0])
+        rob_cen = np.array([0, 0, 0])
+        n = len(self.img_coords)
+        for i in range(len(self.img_coords)):
+            cam_cen = np.add(cam_cen, self.img_coords[i])
+            rob_cen = np.add(rob_cen, self.robot_coords[i])
+
+        cam_cen = np.divide(cam_cen, np.array([n, n, n]))
+        rob_cen = np.divide(rob_cen, np.array([n, n, n]))
+
+        print(cam_cen, rob_cen)
+
+        normalized_cam = []
+        normalized_rob = []
+
+        for i in range(len(self.img_coords)):
+            normalized_cam.append(np.subtract(self.img_coords[i], cam_cen))
+            normalized_rob.append(np.subtract(self.robot_coords[i], rob_cen))
+
+        rot, _ = Rotation.align_vectors(normalized_rob, normalized_cam)
+        R = rot.as_matrix()
+        P = self.img_coords[1]
+        Q = self.robot_coords[1]
+        RP = np.matmul(R, np.transpose(cam_cen))
+        t = np.subtract(rob_cen, RP)
+        self.vals["R"] = R
+        self.vals["t"] = t
+
+        test_Q = np.transpose(np.add(np.matmul(R, np.transpose(P)), t))
+        print(Q, test_Q)
+
 
 # main loop for calibration
 
@@ -102,7 +100,9 @@ class Calibration:
 def main():
     calibrate = Calibration()
     calibrate.set_hsv()
-    calibrate.calibration_routine()
+    calibrate.movement_routine()
+    calibrate.calibration_math()
+    calibrate.save_vals()
 
 
 if __name__ == "__main__":

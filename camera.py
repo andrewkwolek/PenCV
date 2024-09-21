@@ -182,11 +182,10 @@ class Camera:
         if centroid[0] > 0 and centroid[0] < 480 and centroid[1] > 0 and centroid[1] < 640:
             im_depth = self.aligned_depth_frame.get_distance(
                 centroid[0], centroid[1])
-            print(centroid)
-            print(im_depth)
         else:
             im_depth = 0
-        return (centroid[0], centroid[1], im_depth)
+        print(im_depth)
+        return (centroid[0]*self.depth_scale, centroid[1]*self.depth_scale, im_depth)
 
     def render_images(self, image1, image2):
         # Render images:
@@ -209,11 +208,12 @@ class Camera:
         contours = self.contours(color_image, mask)
         centroid = self.locate_centroid(contours, color_image)
         xyz = None
+        print(centroid)
         if centroid != None:
             xyz = self.get_full_coordinate(centroid)
         images = self.render_images(color_image, hsv_aligned_image)
         self.display_images(images)
-        if xyz != None and xyz[2] > 0:
+        if xyz != None and xyz[2] > 0 and xyz[2] < 1:
             coord_to_robot = xyz
             return coord_to_robot
 

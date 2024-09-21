@@ -1,8 +1,13 @@
 from interbotix_xs_modules.xs_robot.arm import InterbotixManipulatorXS
 from interbotix_common_modules.common_robot.robot import robot_shutdown, robot_startup
+from camera import Camera
 
 import modern_robotics as mr
+import numpy as np
+import time
+import cv2
 # The robot object is what you use to control the robot
+
 
 class Robot:
     def __init__(self):
@@ -11,88 +16,96 @@ class Robot:
     def __enter__(self):
         robot_startup()
         self.mode = 'h'
-        self.robot.arm.go_to_home_pose()
+        self.robot.arm.go_to_home_pose(moving_time=1)
+        self.robot.gripper.set_pressure(0.8)
         return self
-    
+
     def __exit__(self,  exc_type, exc_value, exc_traceback):
-        self.robot.arm.go_to_sleep_pose()
         robot_shutdown()
+        time.sleep(1)
 
     def get_mode(self):
         return self.mode
-    
-    def calibration_test(self, robot_coords):
-        while self.mode != 'q':
-            self.mode = input("[h]ome, [s]leep, [q]uit, [c]lose, [o]pen, [r]otate, [s]houlder, [e]lbow, [k]eep, [p]ass\n")
-            if self.mode == 'h':
-                self.robot.arm.go_to_home_pose()
-            elif self.mode == 's':
-                self.robot.arm.go_to_sleep_pose()
-            elif self.mode == 'c':
-                self.robot.gripper.grasp()
-            elif self.mode == 'o':
-                self.robot.gripper.release()
-            elif self.mode == 'r':
-                cur_pos = self.robot.arm.get_single_joint_command("waist")
-                print(self.robot.arm.set_single_joint_position('waist', cur_pos + 0.25, moving_time=3))
-            elif self.mode == 's':
-                self.robot.arm.set_single_joint_position('shoulder', 0.25, moving_time=3)
-                print(f"Joint positions: {self.robot.arm.get_joint_commands()}")
-            elif self.mode == 'e':
-                self.robot.arm.set_single_joint_position('elbow', -0.25, moving_time=3)
-                print(f"Joint positions: {self.robot.arm.get_joint_commands()}")
-            elif self.mode == 'k':
-                T = mr.FKinSpace(self.robot.arm.robot_des.M, self.robot.arm.robot_des.Slist, self.robot.arm.get_joint_commands())
-                _, d = mr.TransToRp(T)
-                robot_coords.append(d)
-            elif self.mode == 'p':
-                pass
-
-    
-    def run(self):
-        while self.mode != 'q':
-            self.mode = input("[h]ome, [s]leep, [q]uit, [d]ata, [c]lose, [o]pen, [r]otate, [s]houlder, [e]lbow\n")
-            if self.mode == 'h':
-                self.robot.arm.go_to_home_pose()
-            elif self.mode == 's':
-                self.robot.arm.go_to_sleep_pose()
-            elif self.mode == 'd':
-                print(f"Joint positions: {self.robot.arm.get_joint_commands()}")
-                print(f"Commanded EE pose: {self.robot.arm.get_ee_pose_command()}")
-                print(f"Waist pos: {self.robot.arm.get_single_joint_command("waist")}")
-                print(f"Shoulder pos: {self.robot.arm.get_single_joint_command("shoulder")}")
-                print(f"Elbow pos: {self.robot.arm.get_single_joint_command("elbow")}")
-                print(f"Wrist angle pos: {self.robot.arm.get_single_joint_command("wrist_angle")}")
-                T = mr.FKinSpace(self.robot.arm.robot_des.M, self.robot.arm.robot_des.Slist, self.robot.arm.get_joint_commands())
-                rotation_mat = mr.TransToRp(T)
-                # print(f"Rotation atrix and displacement: {rotation_mat}")
-            elif self.mode == 'c':
-                self.robot.gripper.grasp()
-            elif self.mode == 'o':
-                self.robot.gripper.release()
-            elif self.mode == 'r':
-                cur_pos = self.robot.arm.get_single_joint_command("waist")
-                print(self.robot.arm.set_single_joint_position('waist', cur_pos + 0.25, moving_time=3))
-                #self.robot.arm.set_single_joint_position('waist', 150, moving_time=10)
-            elif self.mode == 's':
-                self.robot.arm.set_single_joint_position('shoulder', 0.25, moving_time=3)
-                print(f"Joint positions: {self.robot.arm.get_joint_commands()}")
-            elif self.mode == 'e':
-                self.robot.arm.set_single_joint_position('elbow', -0.25, moving_time=3)
-                print(f"Joint positions: {self.robot.arm.get_joint_commands()}")
 
     def get_gripper_coords(self):
-        T = mr.FKinSpace(self.robot.arm.robot_des.M, self.robot.arm.robot_des.Slist, self.robot.arm.get_joint_commands())
-        _, d = mr.TransToRp(T)
+        M = self.robot.arm.get_ee_pose()
+        d = np.array([M[0][3], M[1][3], M[2][3]])
+        print(d)
         return d
-            
+
+    def get_joint_angles(self):
+        print(f"Joint angles {self.robot.arm.get_joint_commands()}")
+
+    def find_translation(self, R, P, t):
+        RP = np.matmul(R, np.transpose(P))
+        Q = np.transpose(np.add(RP, np.transpose(t)))
+        return Q
+
+    # Changes the angle of joint by delta rads
+    # Returns true if completed
+    def move_joint(self, joint: str, delta: int):
+        pos = self.robot.arm.get_single_joint_command(joint)
+        # time.sleep(0.25)
+        return self.robot.arm.set_single_joint_position(joint, pos + delta, moving_time=0.5)
+
+    def move_all_joints(self, joints):
+        self.robot.arm.set_joint_positions(joints, moving_time=3)
+
+    def close(self):
+        self.robot.gripper.grasp()
+
+    def open(self):
+        self.robot.gripper.release()
+
+    def run_robot_poses(self):
+        while self.mode != 'q':
+            self.mode = input(
+                "[h]ome, [s]leep, [q]uit, [o]pen, [c]lose, [+w]aist, [-w]aist, [+s]oulder, [-s]houlder, [+e]lbow, [-e]lbow, [+r]ist, [-r]ist, [p]oints, [a]ngles\n ")
+            if self.mode == "h":
+                self.robot.arm.go_to_home_pose()
+            elif self.mode == "s":
+                self.robot.arm.go_to_sleep_pose()
+            elif self.mode == "o":
+                self.open()
+            elif self.mode == "c":
+                self.close()
+            elif self.mode == "+w":
+                self.move_joint('waist', 0.25)
+            elif self.mode == "-w":
+                self.move_joint('waist', -0.25)
+            elif self.mode == "+s":
+                self.move_joint('shoulder', 0.25)
+            elif self.mode == "-s":
+                self.move_joint('shoulder', -0.25)
+            elif self.mode == "+e":
+                self.move_joint('elbow', 0.25)
+            elif self.mode == "-e":
+                self.move_joint('elbow', -0.25)
+            elif self.mode == "+r":
+                self.move_joint('wrist_angle', 0.25)
+            elif self.mode == "-r":
+                self.move_joint('wrist_angle', -0.25)
+            elif self.mode == "p":
+                self.get_gripper_coords()
+            elif self.mode == "a":
+                self.get_joint_angles()
+            elif self.mode == "f":
+                with Camera() as cam:
+                    while True:
+                        cam.pipeline_iteration()
+                        key = cv2.waitKey(1)
+                        # Press esc or 'q' to close the image window
+                        if key & 0xFF == ord('c'):
+                            print(cam.get_calibration_values())
+                        if key & 0xFF == ord('q') or key == 27:
+                            cv2.destroyAllWindows()
+                            break
 
 
-    
-    
 def main():
-    with Robot() as arm:
-        arm.run()
+    with Robot() as rob:
+        rob.run_robot_poses()
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     main()
