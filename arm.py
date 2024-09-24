@@ -1,11 +1,10 @@
 from interbotix_xs_modules.xs_robot.arm import InterbotixManipulatorXS
 from interbotix_common_modules.common_robot.robot import robot_shutdown, robot_startup
-from camera import Camera
-
-import modern_robotics as mr
 import numpy as np
 import time
 import cv2
+
+from camera import Camera
 # The robot object is what you use to control the robot
 
 

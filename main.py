@@ -1,11 +1,10 @@
-import pyrealsense2 as rs
 import numpy as np
 import cv2
+import time
+import pickle
+
 from camera import Camera
 from arm import Robot
-import time
-from interbotix_xs_modules.xs_robot.arm import InterbotixManipulatorXS
-import pickle
 
 
 def main():
@@ -45,18 +44,6 @@ def main():
             rob.robot.arm.go_to_home_pose()
             time.sleep(1)
             rob.robot.arm.go_to_sleep_pose()
-
-
-# def main():
-#     resolution = [640, 480]
-#     fps = 30
-#     vals = {}
-#     with open('cal.pkl', 'rb') as file:
-#         vals = pickle.load(file)
-#         print(vals)
-#     with Camera(resolution, fps, vals["min_hue"], vals["depth"], vals["min_sat"], vals["min_val"], vals["max_hue"], vals["max_sat"], vals["max_val"]) as cam:
-#         while True:
-#             P = np.array
 
 
 if __name__ == "__main__":
