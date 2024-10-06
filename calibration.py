@@ -9,6 +9,12 @@ from arm import Robot
 
 
 class Calibration:
+    """
+
+    Calibration class is used to run through a calibration sequence to orient the robot arm relative to the camera. Used when environment variables such as lighting and placement change. Stores calibration values in a pickle file.
+
+    """
+
     def __init__(self):
         self.vals = {}
         self.img_coords = []
@@ -19,6 +25,7 @@ class Calibration:
                           [0.75, 0.25, -0.5, 0], [0.25, 0.25, 0.25, -0.5], [0, -0.5, 1, -0.75], [-0.25, -1.25, 1, 0], [-0.25, 0.75, -0.5, -0.5], [-0.75, 0, 1.25, -1.5]]
 
     def set_hsv(self):
+        """Starts image pipeline and allows user to set the image processing parameters."""
         with Camera() as cam:
             while True:
                 cam.pipeline_iteration()
@@ -31,6 +38,7 @@ class Calibration:
                     break
 
     def movement_routine(self):
+        """Sets the robot to perform a serious of poses. At each pose, the camera coordinate and end effector coordinate are recorded."""
         with Robot() as rob:
             with Camera(self.resolution, self.fps, self.vals["min_hue"], self.vals["depth"], self.vals["min_sat"], self.vals["min_val"], self.vals["max_hue"], self.vals["max_sat"], self.vals["max_val"]) as cam:
                 rob.open()
@@ -50,6 +58,7 @@ class Calibration:
                 rob.robot.arm.go_to_sleep_pose()
 
     def get_coords(self, rob, cam):
+        """Gets the image coordinate and robot coordinate and appends them to their respective lists."""
         time.sleep(1)
         cam_coord = cam.pipeline_iteration()
         while cam_coord == None:
@@ -58,10 +67,12 @@ class Calibration:
         self.robot_coords.append(rob.get_gripper_coords())
 
     def save_vals(self):
+        """Saves all calibration parameters to a pickle file."""
         with open('cal.pkl', 'wb') as file:
             pickle.dump(self.vals, file)
 
     def calibration_math(self):
+        """Computes important parameters such as the rotation matrix and translation vector."""
         cam_cen = np.array([0, 0, 0])
         rob_cen = np.array([0, 0, 0])
         n = len(self.img_coords)
@@ -92,9 +103,6 @@ class Calibration:
 
         test_Q = np.transpose(np.add(np.matmul(R, np.transpose(P)), t))
         print(Q, test_Q)
-
-
-# main loop for calibration
 
 
 def main():
