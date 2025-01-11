@@ -28,7 +28,7 @@ class Calibration:
         """Starts image pipeline and allows user to set the image processing parameters."""
         with Camera() as cam:
             while True:
-                cam.pipeline_iteration()
+                cam.pipeline_iteration(display=True)
                 key = cv2.waitKey(1)
                 # Press esc or 'q' to close the image window
                 if key & 0xFF == ord('c'):
@@ -56,13 +56,14 @@ class Calibration:
                 rob.robot.arm.go_to_home_pose()
                 rob.open()
                 rob.robot.arm.go_to_sleep_pose()
+        print("Movement routine done!")
 
     def get_coords(self, rob, cam):
         """Gets the image coordinate and robot coordinate and appends them to their respective lists."""
         time.sleep(1)
-        cam_coord = cam.pipeline_iteration()
+        cam_coord = cam.pipeline_iteration(display=False)
         while cam_coord == None:
-            cam_coord = cam.pipeline_iteration()
+            cam_coord = cam.pipeline_iteration(display=False)
         self.img_coords.append(np.array(cam_coord))
         self.robot_coords.append(rob.get_gripper_coords())
 

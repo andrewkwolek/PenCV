@@ -184,7 +184,7 @@ class Camera:
                 centroid[0], centroid[1])
         else:
             im_depth = 0
-        print(im_depth)
+        # print(im_depth)
         return (centroid[0]*self.depth_scale, centroid[1]*self.depth_scale, im_depth)
 
     def render_images(self, image1, image2):
@@ -198,7 +198,7 @@ class Camera:
     def display_images(self, images):
         cv2.imshow('image', images)
 
-    def pipeline_iteration(self):
+    def pipeline_iteration(self, display):
         self.set_depth_scale(self.depth/6)
         depth_image, color_image = self.get_images()
         filtered_image = self.bilateral_filter(color_image)
@@ -208,11 +208,12 @@ class Camera:
         contours = self.contours(color_image, mask)
         centroid = self.locate_centroid(contours, color_image)
         xyz = None
-        print(centroid)
+        # print(centroid)
         if centroid != None:
             xyz = self.get_full_coordinate(centroid)
         images = self.render_images(color_image, hsv_aligned_image)
-        self.display_images(images)
+        if display == True:
+            self.display_images(images)
         if xyz != None and xyz[2] > 0 and xyz[2] < 1:
             coord_to_robot = xyz
             return coord_to_robot
@@ -235,7 +236,7 @@ class Camera:
 def main():
     with Camera() as cam:
         while True:
-            cam.pipeline_iteration()
+            cam.pipeline_iteration(display=True)
             key = cv2.waitKey(1)
             # Press esc or 'q' to close the image window
             if key & 0xFF == ord('c'):

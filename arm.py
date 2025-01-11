@@ -91,7 +91,7 @@ class Robot:
             elif self.mode == "f":
                 with Camera() as cam:
                     while True:
-                        cam.pipeline_iteration()
+                        cam.pipeline_iteration(display=True)
                         key = cv2.waitKey(1)
                         # Press esc or 'q' to close the image window
                         if key & 0xFF == ord('c'):
